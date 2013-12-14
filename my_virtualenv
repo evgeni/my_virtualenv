@@ -1,0 +1,200 @@
+#!/bin/sh
+
+# Create a throw-away MySQL environment for running regression tests. This
+# happens in a temp dir/on unshared tmpfses, so does not interfere with
+# existing clusters.
+#
+# (C) 2013 Evgeni Golov <evgeni@debian.org>
+#
+# heavily based on pg_virtualenv for PostgreSQL, which is
+# (C) 2005-2012 Martin Pitt <mpitt@debian.org>
+# (C) 2012-2013 Christoph Berg <myon@debian.org>
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+
+set -eu
+
+case ${LD_PRELOAD:-} in
+    *fakeroot*) NONROOT=1 ;;
+esac
+if [ -z "${NONROOT:-}" ] && [ "$(id -u)" != 0 ]; then
+    NONROOT=1
+fi
+
+# root operation: re-exec ourselves through unshare
+if [ -z "${NONROOT:-}" ] && [ -z "${UNSHARED:-}" ]; then
+    UNSHARED=1 exec unshare -uimn -- "$0" "$@"
+fi
+# unshared program starts here
+
+help ()
+{
+    echo "my_virtualenv: Create throw-away MySQL environment for regression tests"
+    echo "Syntax: $0 [options] [command]"
+    echo "    -s                open a shell when command fails"
+    exit ${1:-0}
+}
+
+find_free_port ()
+{
+    port=$1
+    while ss -l -t -n "( sport = :$port )" 2>/dev/null|grep -q LISTEN; do
+        port=$(( $port + 1 ))
+    done
+    echo $port
+}
+
+# option parsing
+while getopts "hs" opt ; do
+    case $opt in
+	h) help ;;
+	s) run_shell=1 ;;
+	*) help 1 ;;
+    esac
+done
+# shift away args
+shift $(($OPTIND - 1))
+# if no command is given, open a shell
+[ "${1:-}" ] || set -- ${SHELL:-/bin/sh}
+
+# non-root operation: create a temp dir where we store everything
+if [ "${NONROOT:-}" ]; then
+    WORKDIR=$(mktemp -d -t my_virtualenv.XXXXXX)
+    export MYSQL_USER="${USER:-${LOGNAME:-$(id -un)}}"
+    export MYSQL_HOME="$WORKDIR/etc_mysql"
+    export MYDATADIR="$WORKDIR/var_lib_mysql"
+    export MYSQL_UNIX_PORT=$WORKDIR/mysqld.sock
+    mkdir "$MYSQL_HOME" "$WORKDIR/log"
+    PWFILE="$MYSQL_HOME/pwfile"
+    LOGDIR="$WORKDIR/log"
+
+    cleanup () {
+	set +e
+	mysqladmin -u root shutdown
+	rm -rf $WORKDIR
+    }
+    trap cleanup 0 HUP INT QUIT ILL ABRT PIPE TERM
+
+# root operation: keep everything in the standard locations
+else
+    # let everything happen in overlay tmpfses to avoid interfering with already
+    # existing servers; this also speeds up testing
+    export MYSQL_USER="root"
+    export MYSQL_HOME=/etc/mysql
+    export MYDATADIR="/var/lib/mysql"
+    export MYSQL_UNIX_PORT=/var/run/mysqld/mysqld.sock
+    LOGDIR=/var/log/mysql
+    created_dirs=""
+    for d in /etc/mysql /var/lib/mysql /var/log/mysql /var/run/mysqld; do
+	if ! [ -d $d ]; then
+	    created_dirs="$created_dirs $d"
+	    mkdir -p $d
+	fi
+	mount -n -t tmpfs -o mode=755 tmpfs $d
+    done
+
+    PWFILE=$(mktemp -t mypassword.XXXXXX)
+    chown root:root "$PWFILE"
+
+    # clean up the created server and directories after us
+    cleanup () {
+	set +e
+	mysqladmin -u root shutdown
+	if [ "$created_dirs" ]; then
+	    umount $created_dirs
+	    rmdir --ignore-fail-on-non-empty -p $created_dirs
+	fi
+	rm -f $PWFILE 
+    }
+    trap cleanup 0 HUP INT QUIT ILL ABRT PIPE TERM
+
+    chown root:root /var/log/mysql
+    chmod 1775 /var/log/mysql
+    chown root:root /var/run/mysqld
+    chmod 2775 /var/run/mysqld
+
+    # start localhost interface
+    ifconfig lo up
+fi
+
+# create MySQL environment
+if [ -x /usr/bin/pwgen ]; then
+    export MYSQL_PASS=$(pwgen 20 1)
+else
+    export MYSQL_PASS=$(dd if=/dev/urandom bs=1k count=1 2>/dev/null | md5sum - | awk '{ print $1 }')
+fi
+cat >> $PWFILE <<EOF
+[client]
+password=$MYSQL_PASS
+EOF
+
+port=$(find_free_port 3306)
+export MYSQL_HOST="localhost"
+export MYSQL_TCP_PORT="$port"
+
+cat >> $MYSQL_HOME/my.cnf <<EOF
+[client]
+port=$port
+socket=$MYSQL_UNIX_PORT
+
+[server]
+user=$MYSQL_USER
+basedir=/usr
+datadir=$MYDATADIR
+socket=$MYSQL_UNIX_PORT
+port=$port
+general_log_file=$LOGDIR/mysql-general.log
+general_log=0
+
+EOF
+
+if [ -z "${MYSQLD:-}" ]; then
+   if which mysqld >/dev/null 2>&1; then
+       MYSQLD=mysqld
+   else
+       MYSQLD=/usr/sbin/mysqld
+   fi
+fi
+
+# we chdir to / so programs don't throw "could not change directory to ..."
+(
+	cd /
+	mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=/usr --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --force >/dev/null
+	$MYSQLD --defaults-file=$MYSQL_HOME/my.cnf >$LOGDIR/mysql.log 2>&1 &
+
+	# 6s was reported in #352070 to be too few when using ndbcluster
+	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do
+		sleep 1
+		if mysqladmin -u root ping >/dev/null 2>&1; then break; fi
+	done
+
+	[ -z "${NONROOT:-}" ] || echo "GRANT ALL ON *.* TO '$MYSQL_USER'@'$MYSQL_HOST' IDENTIFIED BY '$MYSQL_PASS' WITH GRANT OPTION;" | mysql -uroot
+	mysqladmin -u root password $MYSQL_PASS
+)
+
+export MYSQL_PWD=$MYSQL_PASS
+unset MYSQL_PASS
+
+# run program
+"$@" || EXIT="$?"
+if [ ${EXIT:-0} -gt 0 ]; then
+    for log in ${LOGDIR:-/var/log/mysql}/*.log; do
+	echo "$log:"
+	tail -100 $log
+    done
+
+    if [ "${run_shell:-}" ]; then
+	echo "my_virtualenv: command exited with status $?, dropping you into a shell"
+	$SHELL
+    fi
+fi
+
+exit ${EXIT:-0}
