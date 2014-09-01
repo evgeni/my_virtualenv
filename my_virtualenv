@@ -41,6 +41,21 @@ else
     MYSQL_BASEDIR=/usr
 fi
 
+if which md5sum >/dev/null 2>&1 ; then
+    MD5SUM='md5sum'
+elif which md5 >/dev/null 2>&1 ; then
+    MD5SUM='md5 -r'
+elif which openssl >/dev/null 2>&1 ; then
+    if openssl version | grep -q "0.9.8"; then
+        MD5SUM='openssl md5'
+    else
+        MD5SUM='openssl md5 -r'
+    fi
+else
+    echo >&2 "Could not find any md5 command line tool, what kind of system is this?"
+    exit 1
+fi
+
 help ()
 {
     echo "my_virtualenv: Create throw-away MySQL environment for regression tests"
@@ -138,7 +153,7 @@ fi
 if [ -x /usr/bin/pwgen ]; then
     export MYSQL_PASS=$(pwgen 20 1)
 else
-    export MYSQL_PASS=$(dd if=/dev/urandom bs=1k count=1 2>/dev/null | md5sum - | awk '{ print $1 }')
+    export MYSQL_PASS=$(dd if=/dev/urandom bs=1k count=1 2>/dev/null | $MD5SUM | awk '{print $1}')
 fi
 cat >> $PWFILE <<EOF
 [client]
