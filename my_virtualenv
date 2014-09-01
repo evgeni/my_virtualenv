@@ -56,6 +56,15 @@ else
     exit 1
 fi
 
+if which ss >/dev/null 2>&1 ; then
+    CHECK_PORT='ss -l -t -n "( sport = :$port )" 2>/dev/null | grep -q LISTEN'
+elif which nc >/dev/null 2>&1 ; then
+    CHECK_PORT='nc -z localhost $port >/dev/null 2>&1'
+else
+    echo >&2 "Could not find neither ss (iproute2) nor nc (netcat), what kind of system is this?"
+    exit 1
+fi
+
 help ()
 {
     echo "my_virtualenv: Create throw-away MySQL environment for regression tests"
@@ -68,7 +77,7 @@ help ()
 find_free_port ()
 {
     port=$1
-    while ss -l -t -n "( sport = :$port )" 2>/dev/null|grep -q LISTEN; do
+    while eval $CHECK_PORT; do
         port=$(( $port + 1 ))
     done
     echo $port
