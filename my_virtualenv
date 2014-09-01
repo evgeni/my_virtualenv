@@ -35,11 +35,18 @@ if [ -z "${NONROOT:-}" ] && [ -z "${UNSHARED:-}" ]; then
 fi
 # unshared program starts here
 
+if which mysql_config >/dev/null 2>&1 ; then
+    MYSQL_BASEDIR=$(mysql_config --variable=pkgincludedir |sed 's#/include/mysql##')
+else
+    MYSQL_BASEDIR=/usr
+fi
+
 help ()
 {
     echo "my_virtualenv: Create throw-away MySQL environment for regression tests"
     echo "Syntax: $0 [options] [command]"
     echo "    -s                open a shell when command fails"
+    echo "    -b <basedir>      set the MySQL basedir (default: $MYSQL_BASEDIR)"
     exit ${1:-0}
 }
 
@@ -53,10 +60,11 @@ find_free_port ()
 }
 
 # option parsing
-while getopts "hs" opt ; do
+while getopts "hsb" opt ; do
     case $opt in
 	h) help ;;
 	s) run_shell=1 ;;
+	b) MYSQL_BASEDIR=$OPTARG ;;
 	*) help 1 ;;
     esac
 done
@@ -148,7 +156,7 @@ socket=$MYSQL_UNIX_PORT
 
 [server]
 user=$MYSQL_USER
-basedir=/usr
+basedir=$MYSQL_BASEDIR
 datadir=$MYDATADIR
 socket=$MYSQL_UNIX_PORT
 port=$port
@@ -168,7 +176,7 @@ fi
 # we chdir to / so programs don't throw "could not change directory to ..."
 (
 	cd /
-	mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=/usr --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --force >/dev/null
+	mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --force >/dev/null
 	$MYSQLD --defaults-file=$MYSQL_HOME/my.cnf >$LOGDIR/mysql.log 2>&1 &
 
 	# 6s was reported in #352070 to be too few when using ndbcluster
