@@ -12,6 +12,14 @@ Installation
 
 There is no fancy shell script you can `curl ... | sh` (well, actually... nononono, forget it!).
 
+Dependencies
+------------
+
+ * a POSIX compatible shell
+ * MySQL (tested with 5.5, but should work with other versions too)
+ * either [`pwgen`][pwgen] or an MD5 command line tool (either `md5sum` from GNU coreutils or `md5` from OSX or OpenSSL)
+ * either `ss` (from [iproute2][iproute2]) or `nc` (from any netcat implementation)
+
 Configuration
 -------------
 
@@ -60,3 +68,5 @@ When running `my_virtualenv`, your environment gets poluted with the following (
 
 
 [pve]: https://alioth.debian.org/scm/loggerhead/pkg-postgresql/postgresql-common/trunk/view/head:/pg_virtualenv
+[pwgen]: http://sourceforge.net/projects/pwgen/
+[iproute2]: https://www.kernel.org/pub/linux/utils/net/iproute2/
