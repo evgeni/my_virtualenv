@@ -124,7 +124,7 @@ else
     export MYDATADIR="/var/lib/mysql"
     export MYSQL_UNIX_PORT=/var/run/mysqld/mysqld.sock
     LOGDIR=/var/log/mysql
-    mount --make-rprivate / || : # reset / to private mounts (systemd changes this to shared)
+    mount --make-rprivate / 2> /dev/null || : # reset / to private mounts (systemd changes this to shared)
     created_dirs=""
     for d in /etc/mysql /var/lib/mysql /var/log/mysql /var/run/mysqld; do
 	if ! [ -d $d ]; then
