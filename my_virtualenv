@@ -196,6 +196,8 @@ EOF
 if [ -z "${MYSQLD:-}" ]; then
    if which mysqld >/dev/null 2>&1; then
        MYSQLD=mysqld
+   elif [ -x /usr/libexec/mysqld ]; then
+       MYSQLD=/usr/libexec/mysqld
    else
        MYSQLD=/usr/sbin/mysqld
    fi
