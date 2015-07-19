@@ -1,11 +1,6 @@
 before_script:
-  - "[ -d $HOME/bats ] || git clone https://github.com/sstephenson/bats $HOME/bats"
-  - cd $HOME/bats && git pull
+  - git clone https://github.com/sstephenson/bats $HOME/bats
 
 script: $HOME/bats/bin/bats --tap my_virtualenv.bats
 
 sudo: false
-
-cache:
-  directories:
-    - $HOME/bats
