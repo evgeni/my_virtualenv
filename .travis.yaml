@@ -1,0 +1,4 @@
+before_script:
+  - git clone https://github.com/sstephenson/bats $HOME/bats
+
+script: $HOME/bats/bin/bats --tap my_virtualenv.bats
