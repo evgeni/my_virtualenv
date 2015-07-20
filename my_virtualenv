@@ -71,6 +71,7 @@ help ()
     echo "Syntax: $0 [options] [command]"
     echo "    -s                open a shell when command fails"
     echo "    -b <basedir>      set the MySQL basedir (default: $MYSQL_BASEDIR)"
+    echo "    -c <conf_file>    Extra configuration parameters to put in my.cnf"
     exit ${1:-0}
 }
 
@@ -84,12 +85,13 @@ find_free_port ()
 }
 
 # option parsing
-while getopts "hsb" opt ; do
+while getopts "hsb:c:" opt ; do
     case $opt in
-	h) help ;;
-	s) run_shell=1 ;;
-	b) MYSQL_BASEDIR=$OPTARG ;;
-	*) help 1 ;;
+    h) help ;;
+    s) run_shell=1 ;;
+    b) MYSQL_BASEDIR=$OPTARG ;;
+    c) EXTRA_CONFIGURATION=$OPTARG ;;
+    *) help 1 ;;
     esac
 done
 # shift away args
@@ -109,9 +111,9 @@ if [ "${NONROOT:-}" ]; then
     LOGDIR="$WORKDIR/log"
 
     cleanup () {
-	set +e
-	mysqladmin -u root shutdown
-	rm -rf $WORKDIR
+    set +e
+    mysqladmin -u root shutdown
+    rm -rf $WORKDIR
     }
     trap cleanup 0 HUP INT QUIT ILL ABRT PIPE TERM
 
@@ -127,11 +129,11 @@ else
     mount --make-rprivate / 2> /dev/null || : # reset / to private mounts (systemd changes this to shared)
     created_dirs=""
     for d in /etc/mysql /var/lib/mysql /var/log/mysql /var/run/mysqld; do
-	if ! [ -d $d ]; then
-	    created_dirs="$created_dirs $d"
-	    mkdir -p $d
-	fi
-	mount -n -t tmpfs -o mode=755 tmpfs $d
+    if ! [ -d $d ]; then
+        created_dirs="$created_dirs $d"
+        mkdir -p $d
+    fi
+    mount -n -t tmpfs -o mode=755 tmpfs $d
     done
 
     PWFILE=$(mktemp -t mypassword.XXXXXX)
@@ -139,13 +141,13 @@ else
 
     # clean up the created server and directories after us
     cleanup () {
-	set +e
-	mysqladmin -u root shutdown
-	if [ "$created_dirs" ]; then
-	    umount $created_dirs
-	    rmdir --ignore-fail-on-non-empty -p $created_dirs
-	fi
-	rm -f $PWFILE 
+    set +e
+    mysqladmin -u root shutdown
+    if [ "$created_dirs" ]; then
+        umount $created_dirs
+        rmdir --ignore-fail-on-non-empty -p $created_dirs
+    fi
+    rm -f $PWFILE 
     }
     trap cleanup 0 HUP INT QUIT ILL ABRT PIPE TERM
 
@@ -193,6 +195,10 @@ general_log=0
 
 EOF
 
+if [ -n "$EXTRA_CONFIGURATION" ]; then
+    cat $EXTRA_CONFIGURATION >> $MYSQL_HOME/my.cnf
+fi
+
 if [ -z "${MYSQLD:-}" ]; then
    if which mysqld >/dev/null 2>&1; then
        MYSQLD=mysqld
@@ -205,18 +211,18 @@ fi
 
 # we chdir to / so programs don't throw "could not change directory to ..."
 (
-	cd /
-	mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --force >/dev/null
-	$MYSQLD --defaults-file=$MYSQL_HOME/my.cnf >$LOGDIR/mysql.log 2>&1 &
+    cd /
+    mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --force >/dev/null
+    $MYSQLD --defaults-file=$MYSQL_HOME/my.cnf >$LOGDIR/mysql.log 2>&1 &
 
-	# 6s was reported in #352070 to be too few when using ndbcluster
-	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do
-		sleep 1
-		if mysqladmin -u root ping >/dev/null 2>&1; then break; fi
-	done
+    # 6s was reported in #352070 to be too few when using ndbcluster
+    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do
+        sleep 1
+        if mysqladmin -u root ping >/dev/null 2>&1; then break; fi
+    done
 
-	[ -z "${NONROOT:-}" ] || echo "GRANT ALL ON *.* TO '$MYSQL_USER'@'$MYSQL_HOST' IDENTIFIED BY '$MYSQL_PASS' WITH GRANT OPTION;" | mysql -uroot
-	mysqladmin -u root password $MYSQL_PASS
+    [ -z "${NONROOT:-}" ] || echo "GRANT ALL ON *.* TO '$MYSQL_USER'@'$MYSQL_HOST' IDENTIFIED BY '$MYSQL_PASS' WITH GRANT OPTION;" | mysql -uroot
+    mysqladmin -u root password $MYSQL_PASS
 )
 
 export MYSQL_PWD=$MYSQL_PASS
@@ -226,13 +232,13 @@ unset MYSQL_PASS
 "$@" || EXIT="$?"
 if [ ${EXIT:-0} -gt 0 ]; then
     for log in ${LOGDIR:-/var/log/mysql}/*.log; do
-	echo "$log:"
-	tail -100 $log
+    echo "$log:"
+    tail -100 $log
     done
 
     if [ "${run_shell:-}" ]; then
-	echo "my_virtualenv: command exited with status $EXIT, dropping you into a shell"
-	${SHELL:-/bin/sh}
+    echo "my_virtualenv: command exited with status $EXIT, dropping you into a shell"
+    ${SHELL:-/bin/sh}
     fi
 fi
 
