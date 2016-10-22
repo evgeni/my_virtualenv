@@ -71,6 +71,7 @@ help ()
     echo "Syntax: $0 [options] [command]"
     echo "    -s                open a shell when command fails"
     echo "    -b <basedir>      set the MySQL basedir (default: $MYSQL_BASEDIR)"
+    echo "    -c <conf_file>    Extra configuration parameters file to put into my.cnf"
     exit ${1:-0}
 }
 
@@ -84,11 +85,12 @@ find_free_port ()
 }
 
 # option parsing
-while getopts "hsb" opt ; do
+while getopts "hsb:c:" opt ; do
     case $opt in
 	h) help ;;
 	s) run_shell=1 ;;
 	b) MYSQL_BASEDIR=$OPTARG ;;
+	c) EXTRA_CONFIGURATION=$OPTARG ;;
 	*) help 1 ;;
     esac
 done
@@ -192,6 +194,10 @@ general_log_file=$LOGDIR/mysql-general.log
 general_log=0
 
 EOF
+
+if [ -n "$EXTRA_CONFIGURATION" ]; then
+    cat "$EXTRA_CONFIGURATION" >> $MYSQL_HOME/my.cnf
+fi
 
 if [ -z "${MYSQLD:-}" ]; then
    if which mysqld >/dev/null 2>&1; then
