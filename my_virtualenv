@@ -195,7 +195,7 @@ general_log=0
 
 EOF
 
-if [ -n "$EXTRA_CONFIGURATION" ]; then
+if [ -n "${EXTRA_CONFIGURATION:-}" ]; then
     cat "$EXTRA_CONFIGURATION" >> $MYSQL_HOME/my.cnf
 fi
 
