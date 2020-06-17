@@ -67,6 +67,6 @@ When running `my_virtualenv`, your environment gets poluted with the following (
  * `MYSQL_UNIX_PORT` - the path to the `mysqld` socket
 
 
-[pve]: https://alioth.debian.org/scm/loggerhead/pkg-postgresql/postgresql-common/trunk/view/head:/pg_virtualenv
+[pve]: https://salsa.debian.org/postgresql/postgresql-common/-/blob/master/pg_virtualenv
 [pwgen]: http://sourceforge.net/projects/pwgen/
 [iproute2]: https://www.kernel.org/pub/linux/utils/net/iproute2/
