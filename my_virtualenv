@@ -212,7 +212,7 @@ fi
 # we chdir to / so programs don't throw "could not change directory to ..."
 (
 	cd /
-	mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --force >/dev/null
+	mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --force --auth-root-authentication-method=normal >/dev/null
 	$MYSQLD --defaults-file=$MYSQL_HOME/my.cnf >$LOGDIR/mysql.log 2>&1 &
 
 	# 6s was reported in #352070 to be too few when using ndbcluster
