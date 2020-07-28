@@ -1,0 +1,15 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install MariaDB
+        run: sudo apt-get install -y mariadb-server
+      - name: Install bats
+        run: sudo apt-get install -y bats
+      - name: Run tests
+        run: bats --tap my_virtualenv.bats
