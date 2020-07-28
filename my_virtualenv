@@ -183,6 +183,7 @@ cat >> $MYSQL_HOME/my.cnf <<EOF
 [client]
 port=$port
 socket=$MYSQL_UNIX_PORT
+password=$MYSQL_PASS
 
 [server]
 user=$MYSQL_USER
@@ -212,7 +213,7 @@ fi
 # we chdir to / so programs don't throw "could not change directory to ..."
 (
 	cd /
-	mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --force >/dev/null
+	mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR >/dev/null
 	$MYSQLD --defaults-file=$MYSQL_HOME/my.cnf >$LOGDIR/mysql.log 2>&1 &
 
 	# 6s was reported in #352070 to be too few when using ndbcluster
