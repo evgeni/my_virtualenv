@@ -14,8 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Install ${{ matrix.server }}
-        run: sudo apt-get install -y ${{ matrix.server }}
+        run: sudo apt-get install -y --no-install-recommends ${{ matrix.server }}
       - name: Install bats
-        run: sudo apt-get install -y bats
+        run: sudo apt-get install -y --no-install-recommends bats
       - name: Run tests
         run: bats --tap my_virtualenv.bats
