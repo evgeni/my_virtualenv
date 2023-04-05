@@ -16,7 +16,7 @@ Dependencies
 ------------
 
  * a POSIX compatible shell
- * MySQL (tested with 5.5, but should work with other versions too)
+ * MySQL (tested with 8.0) or MariaDB (tested with 10.6), other versions and flavors should work but are untested
  * either [`pwgen`][pwgen] or an MD5 command line tool (either `md5sum` from GNU coreutils or `md5` from OSX or OpenSSL)
  * either `ss` (from [iproute2][iproute2]) or `nc` (from any netcat implementation)
 
