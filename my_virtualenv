@@ -226,7 +226,10 @@ fi
 		if mysqladmin -u root ping >/dev/null 2>&1; then break; fi
 	done
 
-	[ -z "${NONROOT:-}" ] || echo "GRANT ALL ON *.* TO '$MYSQL_USER'@'$MYSQL_HOST' IDENTIFIED BY '$MYSQL_PASS' WITH GRANT OPTION;" | mysql -uroot
+	if [ -n "${NONROOT:-}" ]; then
+		echo "CREATE USER '$MYSQL_USER'@'$MYSQL_HOST' IDENTIFIED BY '$MYSQL_PASS';" | mysql -uroot
+		echo "GRANT ALL ON *.* TO '$MYSQL_USER'@'$MYSQL_HOST' WITH GRANT OPTION;" | mysql -uroot
+	fi
 	mysqladmin -u root password $MYSQL_PASS
 )
 
