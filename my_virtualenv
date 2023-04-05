@@ -192,6 +192,7 @@ socket=$MYSQL_UNIX_PORT
 port=$port
 general_log_file=$LOGDIR/mysql-general.log
 general_log=0
+log_error=$LOGDIR/error.log
 
 EOF
 
