@@ -35,17 +35,17 @@ if [ -z "${NONROOT:-}" ] && [ -z "${UNSHARED:-}" ]; then
 fi
 # unshared program starts here
 
-if which mysql_config >/dev/null 2>&1 ; then
+if command -v mysql_config >/dev/null 2>&1 ; then
     MYSQL_BASEDIR=$(mysql_config --variable=pkgincludedir |sed 's#/include/mysql##')
 else
     MYSQL_BASEDIR=/usr
 fi
 
-if which md5sum >/dev/null 2>&1 ; then
+if command -v md5sum >/dev/null 2>&1 ; then
     MD5SUM='md5sum'
-elif which md5 >/dev/null 2>&1 ; then
+elif command -v md5 >/dev/null 2>&1 ; then
     MD5SUM='md5 -r'
-elif which openssl >/dev/null 2>&1 ; then
+elif command -v openssl >/dev/null 2>&1 ; then
     if openssl version | grep -q "0.9.8"; then
         MD5SUM='openssl md5'
     else
@@ -56,9 +56,9 @@ else
     exit 1
 fi
 
-if which ss >/dev/null 2>&1 ; then
+if command -v ss >/dev/null 2>&1 ; then
     CHECK_PORT='ss -l -t -n "( sport = :$port )" 2>/dev/null | grep -q LISTEN'
-elif which nc >/dev/null 2>&1 ; then
+elif command -v nc >/dev/null 2>&1 ; then
     CHECK_PORT='nc -z localhost $port >/dev/null 2>&1'
 else
     echo >&2 "Could not find neither ss (iproute2) nor nc (netcat), what kind of system is this?"
@@ -200,7 +200,7 @@ if [ -n "${EXTRA_CONFIGURATION:-}" ]; then
 fi
 
 if [ -z "${MYSQLD:-}" ]; then
-   if which mysqld >/dev/null 2>&1; then
+   if command -v mysqld >/dev/null 2>&1; then
        MYSQLD=mysqld
    elif [ -x /usr/libexec/mysqld ]; then
        MYSQLD=/usr/libexec/mysqld
