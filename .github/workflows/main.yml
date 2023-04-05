@@ -5,10 +5,16 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        server:
+          - mariadb-server
+          - mysql-server
     steps:
       - uses: actions/checkout@v3
-      - name: Install MariaDB
-        run: sudo apt-get install -y mariadb-server
+      - name: Install ${{ matrix.server }}
+        run: sudo apt-get install -y ${{ matrix.server }}
       - name: Install bats
         run: sudo apt-get install -y bats
       - name: Run tests
