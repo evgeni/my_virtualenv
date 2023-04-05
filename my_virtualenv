@@ -147,7 +147,7 @@ else
 	    umount $created_dirs
 	    rmdir --ignore-fail-on-non-empty -p $created_dirs
 	fi
-	rm -f $PWFILE 
+	rm -f $PWFILE
     }
     trap cleanup 0 HUP INT QUIT ILL ABRT PIPE TERM
 
@@ -213,7 +213,11 @@ fi
 # we chdir to / so programs don't throw "could not change directory to ..."
 (
 	cd /
-	mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --force --auth-root-authentication-method=normal >/dev/null
+	if command -v mysql_install_db; then
+		mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --force --auth-root-authentication-method=normal >/dev/null
+	else
+		$MYSQLD --initialize-insecure --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --log-error=$LOGDIR/error.log >/dev/null
+	fi
 	$MYSQLD --defaults-file=$MYSQL_HOME/my.cnf >$LOGDIR/mysql.log 2>&1 &
 
 	# 6s was reported in #352070 to be too few when using ndbcluster
