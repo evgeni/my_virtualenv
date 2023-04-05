@@ -101,11 +101,15 @@ shift $(($OPTIND - 1))
 
 # non-root operation: create a temp dir where we store everything
 if [ "${NONROOT:-}" ]; then
-    WORKDIR=$(mktemp -d -t my_virtualenv.XXXXXX)
-    export MYSQL_USER="${USER:-${LOGNAME:-$(id -un)}}"
-    export MYSQL_HOME="$WORKDIR/etc_mysql"
-    export MYDATADIR="$WORKDIR/var_lib_mysql"
-    export MYSQL_UNIX_PORT=$WORKDIR/mysqld.sock
+    WORKDIR="$(mktemp -d -t my_virtualenv.XXXXXX)"
+    MYSQL_USER="${USER:-${LOGNAME:-$(id -un)}}"
+    export MYSQL_USER
+    MYSQL_HOME="${WORKDIR}/etc_mysql"
+    export MYSQL_HOME
+    MYDATADIR="${WORKDIR}/var_lib_mysql"
+    export MYDATADIR
+    MYSQL_UNIX_PORT="${WORKDIR}/mysqld.sock"
+    export MYSQL_UNIX_PORT
     mkdir "$MYSQL_HOME" "$WORKDIR/log"
     PWFILE="$MYSQL_HOME/pwfile"
     LOGDIR="$WORKDIR/log"
@@ -113,7 +117,7 @@ if [ "${NONROOT:-}" ]; then
     cleanup () {
 	set +e
 	mysqladmin -u root shutdown
-	rm -rf $WORKDIR
+	rm -rf "${WORKDIR}"
     }
     trap cleanup 0 HUP INT QUIT ILL ABRT PIPE TERM
 
@@ -136,7 +140,7 @@ else
 	mount -n -t tmpfs -o mode=755 tmpfs $d
     done
 
-    PWFILE=$(mktemp -t mypassword.XXXXXX)
+    PWFILE="$(mktemp -t mypassword.XXXXXX)"
     chown root:root "$PWFILE"
 
     # clean up the created server and directories after us
@@ -147,7 +151,7 @@ else
 	    umount $created_dirs
 	    rmdir --ignore-fail-on-non-empty -p $created_dirs
 	fi
-	rm -f $PWFILE
+	rm -f "${PWFILE}"
     }
     trap cleanup 0 HUP INT QUIT ILL ABRT PIPE TERM
 
@@ -166,11 +170,11 @@ fi
 
 # create MySQL environment
 if [ -x /usr/bin/pwgen ]; then
-    export MYSQL_PASS=$(pwgen 20 1)
+    MYSQL_PASS="$(pwgen 20 1)"
 else
-    export MYSQL_PASS=$(dd if=/dev/urandom bs=1k count=1 2>/dev/null | $MD5SUM | awk '{print $1}')
+    MYSQL_PASS="$(dd if=/dev/urandom bs=1k count=1 2>/dev/null | $MD5SUM | awk '{print $1}')"
 fi
-cat >> $PWFILE <<EOF
+cat >> "${PWFILE}" <<EOF
 [client]
 password=$MYSQL_PASS
 EOF
@@ -214,14 +218,14 @@ fi
 (
 	cd /
 	if command -v mysql_install_db; then
-		mysql_install_db --defaults-file=$MYSQL_HOME/my.cnf --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --force --auth-root-authentication-method=normal >/dev/null
+		mysql_install_db --defaults-file="${MYSQL_HOME}/my.cnf" --user="${MYSQL_USER}" --basedir="${MYSQL_BASEDIR}" --datadir="${MYDATADIR}" --socket="${MYSQL_UNIX_PORT}" --force --auth-root-authentication-method=normal >/dev/null
 	else
-		$MYSQLD --initialize-insecure --user=$MYSQL_USER --basedir=$MYSQL_BASEDIR --datadir=$MYDATADIR --socket=$MYSQL_UNIX_PORT --log-error=$LOGDIR/error.log >/dev/null
+		$MYSQLD --initialize-insecure --user="${MYSQL_USER}" --basedir="${MYSQL_BASEDIR}" --datadir="${MYDATADIR}" --socket="${MYSQL_UNIX_PORT}" --log-error="${LOGDIR}/error.log" >/dev/null
 	fi
 	$MYSQLD --defaults-file=$MYSQL_HOME/my.cnf >$LOGDIR/mysql.log 2>&1 &
 
 	# 6s was reported in #352070 to be too few when using ndbcluster
-	for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do
+	for _i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do
 		sleep 1
 		if mysqladmin -u root ping >/dev/null 2>&1; then break; fi
 	done
@@ -230,18 +234,18 @@ fi
 		echo "CREATE USER '$MYSQL_USER'@'$MYSQL_HOST' IDENTIFIED BY '$MYSQL_PASS';" | mysql -uroot
 		echo "GRANT ALL ON *.* TO '$MYSQL_USER'@'$MYSQL_HOST' WITH GRANT OPTION;" | mysql -uroot
 	fi
-	mysqladmin -u root password $MYSQL_PASS
+	mysqladmin -u root password "${MYSQL_PASS}"
 )
 
-export MYSQL_PWD=$MYSQL_PASS
+export MYSQL_PWD="${MYSQL_PASS}"
 unset MYSQL_PASS
 
 # run program
 "$@" || EXIT="$?"
 if [ ${EXIT:-0} -gt 0 ]; then
-    for log in ${LOGDIR:-/var/log/mysql}/*.log; do
-	echo "$log:"
-	tail -100 $log
+    for log in "${LOGDIR:-/var/log/mysql}"/*.log; do
+	echo "${log}:"
+	tail -100 "${log}"
     done
 
     if [ "${run_shell:-}" ]; then
