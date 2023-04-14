@@ -72,6 +72,7 @@ help ()
     echo "    -s                open a shell when command fails"
     echo "    -b <basedir>      set the MySQL basedir (default: $MYSQL_BASEDIR)"
     echo "    -c <conf_file>    Extra configuration parameters file to put into my.cnf"
+    echo "    -p <script>       Run <script> after MySQL setup but before the command/shell"
     exit ${1:-0}
 }
 
@@ -85,12 +86,13 @@ find_free_port ()
 }
 
 # option parsing
-while getopts "hsb:c:" opt ; do
+while getopts "hsb:c:p:" opt ; do
     case $opt in
 	h) help ;;
 	s) run_shell=1 ;;
 	b) MYSQL_BASEDIR=$OPTARG ;;
 	c) EXTRA_CONFIGURATION=$OPTARG ;;
+	p) POST_SETUP_SCRIPT=$OPTARG ;;
 	*) help 1 ;;
     esac
 done
@@ -239,6 +241,12 @@ fi
 
 export MYSQL_PWD="${MYSQL_PASS}"
 unset MYSQL_PASS
+
+# run post-setup script if specified
+if [ -n "${POST_SETUP_SCRIPT:-}" ] ; then
+	# shellcheck source=/dev/null
+	. "${POST_SETUP_SCRIPT}"
+fi
 
 # run program
 "$@" || EXIT="$?"
