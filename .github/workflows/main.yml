@@ -18,7 +18,7 @@ jobs:
           - mariadb-server
           - mysql-server
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install ${{ matrix.server }}
         run: sudo apt-get install -y --no-install-recommends ${{ matrix.server }}
       - name: Install bats
