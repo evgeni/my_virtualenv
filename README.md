@@ -57,7 +57,7 @@ After the command/shell terminates, the running `mysqld` gets killed and all the
 Environment
 -----------
 
-When running `my_virtualenv`, your environment gets poluted with the following (useful) vars:
+When running `my_virtualenv`, your environment gets polluted with the following (useful) vars:
 
  * `MYSQL_USER` - the user you can connect as
  * `MYSQL_PWD` - the password of your user
@@ -66,6 +66,11 @@ When running `my_virtualenv`, your environment gets poluted with the following (
  * `MYSQL_TCP_PORT` - the TCP port of `mysqld`
  * `MYSQL_UNIX_PORT` - the path to the `mysqld` socket
 
+CAVEAT: MySQL/MariaDB's client connection code exhibits the total ingenious and
+obvious behavior to switch to ALWAYS use MYSQL_UNIX_PORT if MYSQL_HOST
+is "localhost". After running `my_virtualenv` you must therefore manually
+`export MYSQL_HOST="127.0.0.1"` if you want the connection to be made
+via TCP and MYSQL_TCP_PORT have any effect.
 
 [pve]: https://salsa.debian.org/postgresql/postgresql-common/-/blob/master/pg_virtualenv
 [pwgen]: http://sourceforge.net/projects/pwgen/
